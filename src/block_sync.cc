@@ -20,10 +20,9 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <utility>
 
-#include "src/groups.hh"
+#include "src/group.hh"
 #include "src/options.hh"
 
 namespace redsea {
@@ -81,9 +80,9 @@ Offset getOffsetForSyndrome(std::uint32_t syndrome) {
   }
 }
 
-// \param vec 26-bit word
+// \param input_vector 26-bit word
 // \return 10-bit syndrome
-std::uint32_t calculateSyndrome(std::uint32_t vec) {
+std::uint32_t calculateSyndrome(std::uint32_t input_vector) {
   // clang-format off
   constexpr std::array<std::uint32_t, 26> parity_check_matrix{
     0b1000000000,
@@ -123,15 +122,16 @@ std::uint32_t calculateSyndrome(std::uint32_t vec) {
 
   for (std::size_t k = 0; k < parity_check_matrix.size(); k++)
     result ^= static_cast<std::uint32_t>(parity_check_matrix[parity_check_matrix.size() - 1U - k] *
-                                         (static_cast<std::uint32_t>(vec >> k) & 1U));
+                                         (static_cast<std::uint32_t>(input_vector >> k) & 1U));
 
   return result;
 }
 
 // Precompute mapping of syndromes to error vectors
 // IEC 62106:2015 section B.3.1
-std::map<std::pair<std::uint32_t, Offset>, std::uint32_t> makeErrorLookupTable() {
-  std::map<std::pair<std::uint32_t, Offset>, std::uint32_t> lookup_table;
+// Array of four vectors, one for each offset word.
+std::array<std::vector<std::pair<std::uint32_t, std::uint32_t>>, 5> makeErrorLookupTable() {
+  std::array<std::vector<std::pair<std::uint32_t, std::uint32_t>>, 5> lookup_table;
 
   // Table B.1
   // clang-format off
@@ -154,10 +154,7 @@ std::map<std::pair<std::uint32_t, Offset>, std::uint32_t> makeErrorLookupTable()
         const std::uint32_t error_vector = ((error_bits << shift) & kBlockBitmask);
 
         const std::uint32_t syndrome = calculateSyndrome(error_vector ^ offset.second);
-        lookup_table.insert({
-            {syndrome, offset.first},
-            error_vector
-        });
+        lookup_table[static_cast<std::size_t>(offset.first)].emplace_back(syndrome, error_vector);
       }
     }
   }
@@ -173,10 +170,13 @@ ErrorCorrectionResult correctBurstErrors(Block block, Offset expected_offset) {
   const std::uint32_t syndrome = calculateSyndrome(block.raw);
   result.corrected_bits        = block.raw;
 
-  const auto search = error_lookup_table.find({syndrome, expected_offset});
-  if (search != error_lookup_table.end()) {
-    const std::uint32_t err = search->second;
-    result.corrected_bits ^= err;
+  const auto& table = error_lookup_table[static_cast<std::size_t>(expected_offset)];
+
+  const auto search = std::find_if(table.begin(), table.end(),
+                                   [syndrome](const auto& pair) { return pair.first == syndrome; });
+  if (search != table.end()) {
+    const std::uint32_t error_vector = search->second;
+    result.corrected_bits ^= error_vector;
     result.succeeded = true;
   }
 
