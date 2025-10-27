@@ -36,21 +36,36 @@ Some guidelines for making good bug reports:
 
 ## How to build and run the tests
 
-Install Catch2, then in the redsea root run:
+To run the unit and component tests, Install Catch2, then run these in the redsea project root directory:
 
-    git lfs pull
-    meson setup build -Dbuild_tests=true
-    cd build
-    meson compile
-    meson test
+```bash
+git lfs pull
+meson setup build -Dbuild_tests=true
+cd build
+meson test
+```
+
+The end-to-end tests are perl scripts that run the compiled binary. Some of them
+require sox to prepare the test input files.
+
+```bash
+# (...commands to build redsea...)
+sudo apt install git-lfs perl sox
+# If you didn't already pull the test data
+git lfs pull
+perl test/end_to_end.pl
+```
+
+Inside the script, there's usage help for skipping the sox tests.
 
 ### Generate coverage report
 
-    meson setup -Db_coverage=true build -Dbuild_tests=true
-    cd build
-    meson compile
-    meson test
-    ninja coverage-html
+```bash
+meson setup -Db_coverage=true build -Dbuild_tests=true
+cd build
+meson test
+ninja coverage-html
+```
 
 ## General PR guidelines
 

@@ -15,6 +15,10 @@ each line corresponds to one RDS group; or it can print them as raw hex.
 [Wiki: Features]: https://github.com/windytan/redsea/wiki/Supported-RDS-features
 [Wiki: Input]: https://github.com/windytan/redsea/wiki/Input-formats
 
+Simple usage:
+```
+$ rtl_fm -f 89.3 -s 171k - | redsea -r 171k
+```
 Example output:
 
 ```json
@@ -38,7 +42,7 @@ Example output:
 
 ## How to install
 
-Redsea needs to be built from source, but this is not very complicated. Commands are provided
+Redsea is written in C++ and needs to be built from source, but this is not very complicated. Commands are provided
 below (you should skip the `$` at the start of each command).
 
 ### 1. Install dependencies
@@ -98,11 +102,10 @@ If you cloned the repository you can later get the latest updates and recompile:
 [Wiki: Building on a low-end system]: https://github.com/windytan/redsea/wiki/Building-on-a-low‐end-system
 
 ## Usage
+We have more [usage examples][Wiki: Use cases] in the wiki.
 
 See the full list of [command line options][Wiki: Command line options] in the wiki
 or type `redsea --help`.
-
-We also have more [usage examples][Wiki: Use cases] in the wiki.
 
 ### From RTL-SDR to JSON
 
@@ -124,6 +127,10 @@ redsea --input hex < sample_hex_file.spy
 
 ### From WAV files to hex
 
+Use the `-f` option to read WAV or other audio files that have a header. Redsea will
+automatically detect the sample rate and encoding. You can even read a WAV
+from a pipe (stdin) using `-f -`.
+
 ```bash
 redsea -f mpx_input.wav --output hex
 ```
@@ -137,8 +144,6 @@ redsea -f mpx_input.wav --output hex
 
 * Linux/macOS/Windows
 * For realtime decoding, a Raspberry Pi 1 or faster
-* `rtl_fm` (from [rtl-sdr](http://sdr.osmocom.org/trac/wiki/rtl-sdr)) or any
-   other source that can output demodulated FM multiplex signals
 
 ### Runtime dependencies
 
@@ -156,9 +161,11 @@ redsea -f mpx_input.wav --output hex
 * meson + ninja
 * enough RAM (see [building on a low-end system][Wiki: Building on a low-end system])
 
-### Testing (optional)
+### Testing (optional, for development)
 
 * Catch2
+* Perl
+* SoX
 
 See CONTRIBUTING.md for how to build and run the tests.
 
