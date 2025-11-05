@@ -27,7 +27,7 @@ TEST_CASE("MPX file input") {
   redsea::Options options;
 
   options.sndfilename = "../test/resources/mpx-testfile-yksi.flac";
-  options.input_type  = redsea::InputType::MPX_sndfile;
+  options.input_type  = redsea::InputType::MPX_container;
 
   redsea::MPXReader mpx;
   mpx.init(options);
@@ -120,7 +120,7 @@ TEST_CASE("RDS2/RFT station logo from MPX") {
   // https://github.com/Anthony96922/MiniRDS
 
   options.sndfilename = "../test/resources/rds2-minirds-192k.flac";
-  options.input_type  = redsea::InputType::MPX_sndfile;
+  options.input_type  = redsea::InputType::MPX_container;
   options.streams     = true;
 
   redsea::MPXReader mpx;
@@ -171,7 +171,7 @@ TEST_CASE("Time from start") {
   redsea::Options options;
 
   options.sndfilename     = "../test/resources/rds2-minirds-192k.flac";
-  options.input_type      = redsea::InputType::MPX_sndfile;
+  options.input_type      = redsea::InputType::MPX_container;
   options.time_from_start = true;
   options.streams         = true;
 

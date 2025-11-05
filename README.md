@@ -110,7 +110,8 @@ or type `redsea --help`.
 ### From RTL-SDR to JSON
 
 Redsea reads an MPX signal from stdin by default. It expects the input
-to be raw 16-bit signed-integer PCM. This means it can easily be used with `rtl_fm`.
+to be [raw](https://en.wikipedia.org/wiki/Raw_audio_format) 16-bit signed-integer PCM.
+This means it can easily be used in real-time with `rtl_fm`.
 
 Here's an example command that listens to 87.9 MHz using `rtl_fm` and displays
 the RDS groups:
@@ -120,6 +121,8 @@ rtl_fm -M fm -l 0 -A std -p 0 -s 171k -g 20 -F 9 -f 87.9M | redsea -r 171k
 ```
 
 ### From SPY files to JSON
+
+.spy (or .rds) is the common hexadecimal RDS logging format.
 
 ```bash
 redsea --input hex < sample_hex_file.spy

@@ -47,9 +47,12 @@ void MPXReader::init(const Options& options) {
   num_channels_ = options.num_channels;
   feed_thru_    = options.feed_thru;
   filename_     = options.sndfilename;
+  is_beginning_ = true;
 
   switch (options.input_type) {
-    case InputType::MPX_stdin: {
+    case InputType::MPX_raw_stdin: {
+      source_is_raw_pcm_ = true;
+
       // We will split it into channels later, if needed
       sfinfo_.channels   = 1;
       sfinfo_.format     = SF_FORMAT_RAW | SF_FORMAT_PCM_16;
@@ -61,30 +64,21 @@ void MPXReader::init(const Options& options) {
 
       break;
     }
-    case InputType::MPX_sndfile: {
-      file_ = ::sf_open(options.sndfilename.c_str(), SFM_READ, &sfinfo_);
-      if (file_ != nullptr) {
-        num_channels_ = static_cast<std::uint32_t>(sfinfo_.channels);
-
-        if (options.is_custom_rate_defined) {
-          std::cerr
-              << "redsea: warning: reading sample rate from the file header, ignoring parameter"
-              << std::endl;
-        }
-        if (options.is_num_channels_defined) {
-          std::cerr << "redsea: warning: reading number of channels from the file header, ignoring "
-                       "parameter"
-                    << std::endl;
-        }
-      }
+    case InputType::MPX_container: {
+      source_is_raw_pcm_ = false;
+      file_              = ::sf_open(options.sndfilename.c_str(), SFM_READ, &sfinfo_);
       break;
     }
     default: return;
   }
 
+  // Fatal errors opening the file
   if (file_ == nullptr) {
-    if (::sf_error(file_) == 26 || options.input_type == InputType::MPX_stdin)
+    if (::sf_error(file_) == 26 || options.input_type == InputType::MPX_raw_stdin) {
+      std::cerr << "redsea: error: Unexpected end of input (error " << ::sf_strerror(file_) << ")"
+                << std::endl;
       throw BeyondEofError();
+    }
 
     throw std::runtime_error(::sf_strerror(file_));
   } else if (sfinfo_.samplerate < static_cast<int>(kMinimumSampleRate_Hz)) {
@@ -97,11 +91,25 @@ void MPXReader::init(const Options& options) {
     throw std::runtime_error("sample rate is " + std::to_string(sfinfo_.samplerate) +
                              " Hz, must be " + "no higher than " +
                              std::to_string(static_cast<int>(kMaximumSampleRate_Hz)) + " Hz");
-  } else {
-    chunk_size_ = (static_cast<sf_count_t>(kInputChunkSize) / num_channels_) * num_channels_;
-
-    is_eof_ = (num_channels_ >= buffer_.data.size());
   }
+
+  // Header is preferred over user-defined values: warning
+  if (options.input_type == InputType::MPX_container) {
+    num_channels_ = static_cast<std::uint32_t>(sfinfo_.channels);
+
+    if (options.is_custom_rate_defined) {
+      std::cerr << "redsea: warning: reading sample rate from the file header, ignoring parameter"
+                << std::endl;
+    }
+    if (options.is_num_channels_defined) {
+      std::cerr << "redsea: warning: reading number of channels from the file header, ignoring "
+                   "parameter"
+                << std::endl;
+    }
+  }
+
+  chunk_size_ = (static_cast<sf_count_t>(kInputChunkSize) / num_channels_) * num_channels_;
+  is_eof_     = (num_channels_ >= buffer_.data.size());
 }
 
 MPXReader::~MPXReader() {
@@ -117,6 +125,24 @@ bool MPXReader::eof() const {
 
 // @brief Fill the internal buffer with fresh samples.
 void MPXReader::fillBuffer() {
+  // Redsea's UX of choosing between WAV and raw PCM on stdin is arguably confusing.
+  // We are sacrificing the first 4 bytes of stdin for this helpful warning message.
+  if (is_beginning_ && source_is_raw_pcm_) {
+    std::array<std::int16_t, kMaxNumChannels> test_samples{};
+    // So we don't mess up the channel alignment
+    const auto to_read = std::max(num_channels_, 2U);
+    num_read_          = ::sf_read_short(file_, test_samples.data(), to_read);
+    // 'R' 'I' 'F' 'F' in little-endian
+    if (num_read_ >= 2 && test_samples[0] == 0x4952 && test_samples[1] == 0x4646) {
+      std::cerr << "redsea: warning: expected raw PCM via pipe, but the data looks like WAV. "
+                   "(You can use '--file -' to read WAV from the pipe.)"
+                << std::endl;
+    }
+
+    // Note. We'll read it as raw PCM anyway.
+  }
+  is_beginning_ = false;
+
   num_read_ = ::sf_read_float(file_, buffer_.data.data(), chunk_size_);
 
   buffer_.time_received = std::chrono::system_clock::now();

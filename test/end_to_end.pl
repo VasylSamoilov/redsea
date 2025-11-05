@@ -45,7 +45,7 @@ sub main {
 
     test_InputBits();
     test_InputTEF();
-    test_InputMPXFile();
+    test_InputContainerizedMPX();
     test_InputRawPCM();
     test_IncompatibleOptions();
     test_MildlyIncompatibleOptions();
@@ -131,26 +131,40 @@ sub test_InputBits {
     return;
 }
 
-# Can MPX be read from a FLAC file?
-sub test_InputMPXFile {
+# Can MPX be read from a FLAC file? (Requires git-lfs)
+sub test_InputContainerizedMPX {
     printTestName("MPX input from FLAC file");
 
-    printAssertName('FLAC');
+    printAssertName('--file <flacfile>');
     return if ( skipped( $skip_lfs, 'Skipped in this environment' ) );
 
     checkExitSuccess( runRedseaWithArgs("--file $flac_file") );
     checkStdoutMatches('"pi":');
     checkStderrEmpty();
 
+    # Piped input but it's FLAC
+    printAssertName('--file - < <flacfile>');
+    checkExitSuccess( runRedseaWithArgs("--file - < $flac_file") );
+    checkStdoutMatches('"pi":');
+    checkStderrEmpty();
+
+    # Nonexistent file
+    printAssertName('--file nonexistent');
+    checkExitFailure(
+        runRedseaWithArgs("--file /tmp/this-file-does-not-exist") );
+    checkStdoutEmpty();
+    checkStderrMatches('error: Can\'t open');
+
     return;
 }
 
-# Can raw PCM be read via stdin? (Requires SoX and git-lfs)
+# Reading raw PCM (Requires SoX and git-lfs)
 sub test_InputRawPCM {
     printTestName("MPX input from raw PCM file (piped)");
 
     my $pcm_file_192k = '/tmp/rds2-minirds-192k.raw';
     my $pcm_file_171k = '/tmp/rds2-minirds-171k.raw';
+    my $wav_file_192k = '/tmp/rds2-minirds-192k.wav';
 
     printAssertName("");
 
@@ -159,12 +173,16 @@ sub test_InputRawPCM {
 
     system(
         "sox $flac_file -r 192k -b 16 -c 1 -e signed-integer $pcm_file_192k");
-    check( !$?, 'Created test file 192k' );
+    check( !$?, 'Create test file 192k' );
 
     printAssertName("");
     system(
         "sox $flac_file -r 171k -b 16 -c 1 -e signed-integer $pcm_file_171k");
-    check( !$?, 'Created test file 171k' );
+    check( !$?, 'Create test file 171k' );
+
+    printAssertName("");
+    system("sox $flac_file -r 192k $wav_file_192k");
+    check( !$?, 'Create test WAV file 192k' );
 
     printAssertName('Resample from 192k');
     checkExitSuccess( runRedseaWithArgs("--samplerate 192k < $pcm_file_192k") );
@@ -193,8 +211,15 @@ sub test_InputRawPCM {
     checkStdoutEmpty();
     checkStderrEmpty();
 
+    # User specified raw PCM but the input looks like WAV! Mistake?
+    printAssertName("WAV given, PCM expected");
+    checkExitSuccess( runRedseaWithArgs("-r 171k < $wav_file_192k") );
+    checkStdoutEmpty();    # Because the sample rate is now wrong
+    checkStderrMatches('warning: .*WAV.*');
+
     unlink($pcm_file_192k);
     unlink($pcm_file_171k);
+    unlink($wav_file_192k);
 
     return;
 }
@@ -251,6 +276,9 @@ sub test_InputTEF {
 sub test_IncompatibleOptions {
     printTestName("Incompatible options (fatal)");
 
+    printAssertName("");
+    check( createDummyFile($test_input_file), 'Create dummy test file' );
+
     foreach (
         "--streams --input bits",
         "--input hex --samplerate 192000",
@@ -262,14 +290,16 @@ sub test_IncompatibleOptions {
       )
     {
         printAssertName($_);
-        startupShouldFail($_);
+        startupShouldFail( $_ . " < $test_input_file" );
     }
 
     # This would give a false positive if the FLAC file is missing
-    if ( !skipped( $skip_lfs, '--input pcm --file' ) ) {
-        printAssertName("--input pcm --file");
-        startupShouldFail("--input pcm --file $flac_file");
+    if ( !skipped( $skip_lfs, '--input mpx --file' ) ) {
+        printAssertName("--input mpx --file");
+        startupShouldFail("--input mpx --file $flac_file");
     }
+
+    unlink($test_input_file);
 
     return;
 }
@@ -277,6 +307,9 @@ sub test_IncompatibleOptions {
 # Redsea can start, but should give a warning
 sub test_MildlyIncompatibleOptions {
     printTestName("Incompatible options (non-fatal)");
+
+    printAssertName("");
+    check( createDummyFile($test_input_file), 'Create dummy test file' );
 
     printAssertName("--samplerate --file");
     if ( not skipped( $skip_lfs, 'FLAC file not found' ) ) {
@@ -294,11 +327,16 @@ sub test_MildlyIncompatibleOptions {
     checkExitSuccess( runRedseaWithArgs( "--input mpx", $test_input_file ) );
     checkStderrMatches('warning');
 
+    unlink($test_input_file);
+
     return;
 }
 
 sub test_InvalidOptions {
     printTestName("Invalid option");
+
+    printAssertName("");
+    check( createDummyFile($test_input_file), 'Create dummy test file' );
 
     printAssertName("Invalid option (long)");
     checkExitFailure( runRedseaWithArgs(q{--this-longopt-does-not-exist}) );
@@ -336,6 +374,8 @@ sub test_InvalidOptions {
         checkStdoutMatches('^Usage:');
         checkStderrMatches('requires');
     }
+
+    unlink($test_input_file);
 
     return;
 }
@@ -390,7 +430,7 @@ sub printAssertName {
 sub startupShouldFail {
     my ($args) = @_;
     checkExitFailure( runRedseaWithArgs($args) );
-    checkStderrMatches('error');
+    checkStderrMatches('^redsea: error');
     checkStdoutEmpty();
 
     return;
@@ -417,7 +457,7 @@ sub runRedseaWithArgs {
     my $eval_result = eval {
 
         # Callback on ALRM
-        local $SIG{ALRM} = sub { die "timeout" };
+        local $SIG{ALRM} = sub { croak "timeout" };
 
         # Call it after 5 seconds if we're still here
         alarm $timeout_seconds;
@@ -556,6 +596,13 @@ sub createTestInputFile {
     close $file;
 
     return;
+}
+
+# 1024 bytes of zeros
+sub createDummyFile {
+    my ($file_path) = @_;
+    system("dd if=/dev/zero bs=1 count=1024 of=$file_path");
+    return !$?;
 }
 
 sub previewFileContents {

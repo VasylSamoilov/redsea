@@ -134,6 +134,7 @@ int processMPXInput(redsea::Options options) {
   try {
     mpx.init(options);
   } catch (redsea::BeyondEofError&) {
+    std::cerr << "redsea: error: Unexpected end of input\n";
     printUsage();
     return EXIT_FAILURE;
   } catch (const std::exception& e) {
@@ -242,10 +243,10 @@ int main(int argc, char** argv) {
   }
 
   switch (options.input_type) {
-    case redsea::InputType::MPX_stdin:
-    case redsea::InputType::MPX_sndfile: return processMPXInput(options);
-    case redsea::InputType::ASCIIbits:   return processASCIIBitsInput(options);
-    case redsea::InputType::Hex:         return processHexInput(options);
-    case redsea::InputType::TEF6686:     return processTEFInput(options);
+    case redsea::InputType::MPX_raw_stdin: return processMPXInput(options);
+    case redsea::InputType::MPX_container: return processMPXInput(options);
+    case redsea::InputType::ASCIIbits:     return processASCIIBitsInput(options);
+    case redsea::InputType::Hex:           return processHexInput(options);
+    case redsea::InputType::TEF6686:       return processTEFInput(options);
   }
 }

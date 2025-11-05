@@ -82,9 +82,6 @@ Options getOptions(int argc, char** argv) {
   int help_flag{0};
   bool has_custom_input_type{};
 
-  // Channels take up memory, and we don't want to fill it up by accident.
-  constexpr int kMaxNumChannels{32};
-
   // clang-format off
   const std::array<option, 21> long_options{{
       {"input-bits",   no_argument,       nullptr,   'b'},
@@ -137,7 +134,7 @@ Options getOptions(int argc, char** argv) {
       case 'E': options.bler = true; break;
       case 'f':
         options.sndfilename = std::string(optarg);
-        options.input_type  = InputType::MPX_sndfile;
+        options.input_type  = InputType::MPX_container;
         break;
       case 'h':  // For backwards compatibility
         options.input_type    = InputType::Hex;
@@ -148,7 +145,7 @@ Options getOptions(int argc, char** argv) {
         if (input_type == "hex") {
           options.input_type = InputType::Hex;
         } else if (input_type == "mpx") {
-          options.input_type = InputType::MPX_stdin;
+          options.input_type = InputType::MPX_raw_stdin;
         } else if (input_type == "tef") {
           options.input_type = InputType::TEF6686;
         } else if (input_type == "bits") {
@@ -229,25 +226,28 @@ Options getOptions(int argc, char** argv) {
   //
 
   if (has_custom_input_type && !options.sndfilename.empty()) {
+    // --input implies stdin and --file implies a file; conflicting
     throw std::runtime_error("incompatible options: --input and --file");
   }
 
-  if (options.feed_thru && options.input_type == InputType::MPX_sndfile) {
+  if (options.feed_thru && options.input_type == InputType::MPX_container) {
+    // This is because libsndfile is doing the sample converions for us, and we can't
+    // easily convert it back to the exact original format with headers and all.
     throw std::runtime_error("feed-thru is not supported for MPX file input (try via stdin)");
   }
 
-  if (options.num_channels > 1 && options.input_type != InputType::MPX_stdin &&
-      options.input_type != InputType::MPX_sndfile) {
+  if (options.num_channels > 1 && options.input_type != InputType::MPX_raw_stdin &&
+      options.input_type != InputType::MPX_container) {
     throw std::runtime_error("multi-channel input is only supported for MPX signals");
   }
 
-  if (options.streams && options.input_type != InputType::MPX_sndfile &&
-      options.input_type != InputType::MPX_stdin && options.input_type != InputType::Hex) {
+  if (options.streams && options.input_type != InputType::MPX_container &&
+      options.input_type != InputType::MPX_raw_stdin && options.input_type != InputType::Hex) {
     throw std::runtime_error("RDS2 data streams are only supported for MPX and hex input");
   }
 
-  if (options.time_from_start && options.input_type != InputType::MPX_stdin &&
-      options.input_type != InputType::MPX_sndfile) {
+  if (options.time_from_start && options.input_type != InputType::MPX_raw_stdin &&
+      options.input_type != InputType::MPX_container) {
     throw std::runtime_error("--time-from-start only works for MPX input");
   }
 
@@ -280,15 +280,16 @@ Options getOptions(int argc, char** argv) {
   // --rbds doesn't have any effect for hex output either, but we choose not to warn about it
 
   if (options.is_custom_rate_defined) {
-    if (options.input_type != InputType::MPX_stdin &&
-        options.input_type != InputType::MPX_sndfile) {
+    if (options.input_type != InputType::MPX_raw_stdin &&
+        options.input_type != InputType::MPX_container) {
       // Strictly, it's only supported for raw PCM, but we'll print it as a warning from input.cc
       throw std::runtime_error("sample rate is only supported for MPX input");
     }
   }
 
-  const bool assuming_raw_mpx{options.input_type == InputType::MPX_stdin && !options.print_usage &&
-                              !options.print_version && !options.init_error};
+  const bool assuming_raw_mpx{options.input_type == InputType::MPX_raw_stdin &&
+                              !options.print_usage && !options.print_version &&
+                              !options.init_error};
 
   if (assuming_raw_mpx && !options.is_custom_rate_defined) {
     warn("raw MPX sample rate not defined, assuming " +

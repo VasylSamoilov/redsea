@@ -70,9 +70,12 @@ class MPXReader {
   void fillBuffer();
 
   std::uint32_t num_channels_{};
+  // How many samples to read at once (gets split into channels internally)
   sf_count_t chunk_size_{};
   bool is_eof_{true};
   bool feed_thru_{false};
+  bool is_beginning_{true};
+  bool source_is_raw_pcm_{false};
   std::string filename_;
   MPXBuffer buffer_{};
   MPXBuffer buffer_singlechan_{};

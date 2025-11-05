@@ -35,5 +35,8 @@ static_assert(kMaximumSampleRate_Hz < kTargetSampleRate_Hz / kLiquidMinimumResam
 
 constexpr float kMaxResampleRatio = kTargetSampleRate_Hz / kMinimumSampleRate_Hz;
 
+// Channels take up memory, and we don't want to fill it up by accident.
+constexpr int kMaxNumChannels{32};
+
 }  // namespace redsea
 #endif  // CONSTANTS_H_

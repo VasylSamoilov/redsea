@@ -23,7 +23,7 @@
 
 namespace redsea {
 
-enum class InputType : uint8_t { MPX_stdin, MPX_sndfile, ASCIIbits, Hex, TEF6686 };
+enum class InputType : uint8_t { MPX_raw_stdin, MPX_container, ASCIIbits, Hex, TEF6686 };
 
 enum class OutputType : uint8_t { Hex, JSON };
 
@@ -49,7 +49,7 @@ struct Options {
   bool time_from_start{};
   float samplerate{};
   std::uint32_t num_channels{1};
-  InputType input_type{InputType::MPX_stdin};
+  InputType input_type{InputType::MPX_raw_stdin};
   OutputType output_type{OutputType::JSON};
   std::vector<std::string> loctable_dirs;
   std::string sndfilename;
