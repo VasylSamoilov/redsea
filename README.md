@@ -146,7 +146,7 @@ redsea -f mpx_input.wav --output hex
 ### System
 
 * Linux/macOS/Windows
-* For realtime decoding, a Raspberry Pi 1 or faster
+* For realtime decoding, a Raspberry Pi 1 or faster (see [benchmark results](https://github.com/windytan/redsea/wiki/Benchmark-results)).
 
 ### Runtime dependencies
 
@@ -191,7 +191,7 @@ Try running this in the terminal:
 ## Contributing
 
 We welcome bug reports and documentation contributions. Or take a peek at our
-[open issues](https://github.com/windytan/redsea/issues) to see where we could use a hand. See
+[open issues](https://github.com/windytan/redsea/issues) to see where we could use a hand. New code is contributed using pull requests; See
 [CONTRIBUTING](CONTRIBUTING.md) for more information.
 
 ## Licensing

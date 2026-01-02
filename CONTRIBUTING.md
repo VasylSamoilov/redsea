@@ -1,42 +1,54 @@
 # Contributing guidelines
 
-## Edit the wiki
+## How to improve the wiki
 
 It would be nice to have accessible, up-to-date documentation in the
 [wiki](https://github.com/windytan/redsea/wiki). It can be edited by
 anyone, and you're invited to improve it.
 
-## Create an issue
+## How to create an issue
 
-[Bug reports](https://github.com/windytan/redsea/issues) are very useful
-for the development of redsea.
+[Bug reports](https://github.com/windytan/redsea/issues), also known as
+issues, are very useful for the development of redsea.
 
 Some guidelines for making good bug reports:
 
-* When creating a new bug report ("issue"), be sure to include **basic
-  information** about your system:
-  * Operating system version
-  * CPU architecture
-  * `redsea --version`
-  * Did you compile the libraries (liquid-dsp, sndfile) yourself or are they
-   from package repositories?
-* If there is an **error message**, please include the error message verbatim in
-  the bug report. If it is very long, consider putting it in a file or
-  [gist](https://gist.github.com/) instead.
-* If the problem only appears with some **input signal** it would be very helpful to
-  have a copy of this signal for testing. If it's cumbersome to upload then don't
+* If the problem only appears with some **input signal** it would be very helpful if you could
+  provide a copy of this signal for testing. If it's cumbersome to upload then don't
   worry, we can find ways around it.
-* Be sure to **check back** with GitHub afterwards to see if I've asked any
-  clarifying questions. I may not have access to an environment similar to
-  yours and can't necessarily reproduce the bug myself, and that's why I
-  may have many questions at first.
-* If you fixed the problem yourself, it would be helpful to hear your
-  solution! It's possible that others will also run into similar problems.
-* Please be patient with it; Redsea is a single-maintainer hobby project.
+* Be sure to include basic information about your system (operating system, what kind
+  of computer, which version of redsea)
+* If there is an **error message**, remember to include it.
+
+## How to contribute source code
+
+You can contribute to the source code via [pull requests](https://github.blog/developer-skills/github/beginners-guide-to-github-creating-a-pull-request/) (PRs). We have a build and test
+pipeline in place to ensure that the build works and no basic functionality
+breaks. So no worries.
+
+Our maintainer will review the PR and may also be able to help complete the PR as time allows.
+However, note that this is a hobby project and not so much time can be allotted.
+
+Some rules we wish to follow:
+
+* New features and changes in the main branch should come with some kind of a test.
+  It can be a unit, component, or end-to-end test (see below) and it should reflect
+  what is expected of the feature.
+  * Ideally, all test data should come from some actual radio station and the source is cited. MPX files can be stored in git-lfs but their size should be manageable.
+* A clear and concise [commit messages](https://www.gitkraken.com/learn/git/best-practices/git-commit-message)
+  (PR description) helps a maintainer understand the reason behind the commit and the design choices.
+* Use the included .clang-format file for formatting code.
+* Whenever possible, try to follow the already existing conventions which are loosely following the [Google guidelines](https://google.github.io/styleguide/cppguide.html) for C++17.
+* Try to avoid resorting to manual memory management. We have an address sanitizer in
+  CI but currently no leak checks.
+* If possible, we would really like to keep redsea fast enough to run in real time on a Raspberry Pi 1 Model B (see [benchmarks](https://github.com/windytan/redsea/wiki/Benchmark-results) for inspiration).
 
 ## How to build and run the tests
 
-To run the unit and component tests, Install Catch2, then run these in the redsea project root directory:
+We have three kinds of tests: unit tests, component tests, and end-to-end tests. The difference between unit and component tests is hazy in this project.
+
+To run the unit and
+component tests, Install Catch2, then run these in the redsea project root directory:
 
 ```bash
 git lfs pull
@@ -45,8 +57,8 @@ cd build
 meson test
 ```
 
-The end-to-end tests are perl scripts that run the compiled binary. Some of them
-require sox to prepare the test input files.
+The end-to-end tests are in a Perl script that runs the compiled binary. Some of them
+require sox and git-lfs to prepare the test input files.
 
 ```bash
 # (...commands to build redsea...)
@@ -56,7 +68,7 @@ git lfs pull
 perl test/end_to_end.pl
 ```
 
-Inside the script, there's usage help for skipping the sox tests.
+Inside the script, there's usage help for skipping the sox tests. Even though it's Perl, we tried to make it clear and very understandable and extensible for non-Perlists as well.
 
 ### Generate coverage report
 
@@ -66,45 +78,6 @@ cd build
 meson test
 ninja coverage-html
 ```
-
-## General PR guidelines
-
-You can directly contribute to the source code via pull requests. We have a
-CI pipeline in place to ensure that the build works and no basic functionality
-breaks. So no worries. Our maintainer can help complete the PR as time allows.
-However, note that this is still a hobby project.
-
-Let's face it, C++ is memory-unsafe and not the easiest language at that. But
-there are things we can do to make it safer and more usable for us:
-
-* Squashed commits with clear and concise [commit messages](https://www.gitkraken.com/learn/git/best-practices/git-commit-message) are preferred. Use force-push to update the PR branch if necessary.
-* Since 1.0, we wish to have tests in repo for all new features or bugfixes. The tests
-  can be unit tests written in [Catch2](https://github.com/catchorg/Catch2/) (see `test/*.cc`),
-  or they can be end-to-end tests against the CLI executable itself (some Perl examples
-  in `test/end_to_end.pl`). Perl is only used for testing; all code should pass Perl::Critic
-  level 3.
-* Ideally, all test data comes from some actual radio station and the source is cited.
-* C++ style is described in `.clang-format`; format-on-save is recommended.
-* We aim for C++17 compatibility, so unfortunately more modern features can't be used.
-* We have some static analysis rules described in `.clang-tidy`.
-* Keep in mind redsea has a real-time requirement and it might be run on some
-  low-end 32-bit embedded platform. Unfortunately we don't have automated tests for
-  this.
-* Try to avoid resorting to manual memory management. We have an address sanitizer in
-  CI but currently no leak checks.
-
-Some design philosophy:
-* Each JSON line should somehow correspond to a single RDS group. But this may
-  well change in the future, for any good reason.
-* Data spread over multiple groups should be withdrawn until fully received, unless
-  the user specifies the `--show-partial` option.
-* The hex output should be compatible with RDS Spy, the (unaffiliated) Windows GUI software. (Yes,
-  it's difficult to automate this test)
-* GUI features are outside of our scope
-* Preferably redsea should not create any files in the file system; instead all
-  output should be via stdout if possible
-
-The project uses [semantic versioning](https://semver.org/).
 
 ## Join the discussion
 

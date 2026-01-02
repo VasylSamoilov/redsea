@@ -2,26 +2,24 @@
 
 We use [semantic versioning](https://semver.org/).
 
-## 1.3.0-SNAPSHOT (WIP)
+## 1.3.0 (2026-01-02)
 
 File offset timestamps, bugfixes, and general maintenance. This version requires C++17.
 
 * New features:
-  * File offset timestamp (`--time-from-start`) shows the position of each group's
-    first bit in the input stream in seconds (see [wiki](https://github.com/windytan/redsea/wiki/Time-and-timestamps#file-offset-times)) (#136)
+  * File offset timestamp (`--time-from-start`). It shows the position of each group's
+    first bit in the input stream in seconds (see [wiki](https://github.com/windytan/redsea/wiki/Time-and-timestamps#file-offset-times)) (Requested feature #136)
 * Removed features:
   * "Radio paging" was removed (it was only decoded internally anyway). We haven't found any real data
     to test it on and the feature has been deprecated by RDS Forum since 2021.
 * UX and other fixes:
-  * Don't print a warning about sample rate when no samples expected (#140).
+  * Don't print a warning about sample rate when no samples expected (Issue #140).
   * Print a warning if expecting raw PCM but WAV header is seen.
   * Print more specific error messages if a file can't be opened (instead of "system error") or early EOF is encountered.
   * Validate the combination of command-line options more thoroughly, to reduce surprising behavior.
   * Fix a case where truncated hex input lines were accepted by mistake and zeros generated.
 * Refactoring, CI, etc:
-  * Remove support for Ubuntu 20.04 as it's not available any more for CI runners
-  * Replaced Debian 10 build check with Debian 11
-  * Decoupled some big headers to make the build a little quicker on low-end systems (#120)
+  * Decoupled some big headers to make the build a little quicker on low-end systems (Issue #120)
   * C++17 is now required, to make the above possible
   * Improved test coverage
 

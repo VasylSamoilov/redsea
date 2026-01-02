@@ -40,6 +40,7 @@ main();
 sub main {
     print "Redsea end-to-end tests\n";
 
+    test_NoUnreachableTests();
     test_Prerequisites();
     exit 1 if ($has_failures);
 
@@ -406,6 +407,29 @@ sub test_VersionString {
     checkExitSuccess( runRedseaWithArgs(q{--help --input bits}) );
     checkStdoutMatches('^Usage:');
     checkStderrEmpty();
+
+    return;
+}
+
+# Check that all test_ subroutines in this file are actually called (just a pattern match)
+sub test_NoUnreachableTests {
+    printTestName("Test script self-check");
+
+    my @all_tests;
+    my %calls;
+
+    open( my $s, q{<}, __FILE__ ) or croak $!;
+    while (<$s>) {
+        if (/^sub\ (test_\S+)\ /x) { push @all_tests, $1; }
+        if (/^\ +(test_\S+)\(/x) { $calls{$1}++; }
+    }
+    close($s);
+
+    my @uncalled_tests = grep { not exists $calls{$_} } @all_tests;
+
+    if ( !check( @uncalled_tests == 0, 'main() should call all tests' ) ) {
+        print "Never called: " . join( ' ', @uncalled_tests ) . "\n";
+    }
 
     return;
 }
