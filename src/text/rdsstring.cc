@@ -142,8 +142,7 @@ std::string sanitizeUtf8(const std::string& src) {
     if (i + seq_len > src.size()) {
       // Incomplete sequence at end of string
       result += '?';
-      i++;
-      continue;
+      break;
     }
 
     // Validate continuation bytes (must be 10xxxxxx)
